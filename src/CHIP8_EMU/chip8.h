@@ -74,10 +74,17 @@ public:
 		stackPointer = 0;
 
 		// Clear display
+		for (int i = 0; i < 64 * 32; ++i)
+			graphics[i] = 0;
 		// Clear stack
+		for (int i = 0; i < 16; ++i)
+			stack[i] = 0;
 		// Clear register V0-VF
+		for (int i = 0; i < 16; ++i)
+			registerV[i] = 0;
 		// Clear memory
-
+		for (int i = 0; i < 4096; ++i)
+			memory[i] = 0;
 		// Load fontset
 		for (int i = 0; i < 80; ++i) {
 			memory[i] = chip8_fontset[i];
@@ -124,27 +131,44 @@ public:
 			// Counter incremented by 2, as two successive bytes are fetched
 			// from different addresses, and merged
 
-		case 0x0000: // 0x00E0: Clears the screen
+		case 0x0000: {// 0x00E0: Clears the screen
 			// Execute
 			break;
-
-		case 0x000E: // 0x00EE: Returns from subroutine
+		}
+		case 0x6000: { // 0x6XNN: Sets VX to NN
+			registerV[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
+			programCounter += 2;
+			break;
+		}
+		case 0x000E: { // 0x00EE: Returns from subroutine
 			// Execute
 			break;
-
-		case 0xA000: // 0xANNN: Sets indexRegister to address NNN
+		}
+		case 0xA000: { // 0xANNN: Sets indexRegister to address NNN
 			indexRegister = opcode & 0x0FFF;
-			programCounter += 2; 
+			programCounter += 2;
 			break;
-
-		case 0x2000: // 0x2NNN: Calls subroutine at address NNN
+		}
+		case 0x2000: { // 0x2NNN: Calls subroutine at address NNN
 			// program counter NOT increased by two, because subroutine
 			stack[stackPointer] = programCounter;
 			++stackPointer;
 			programCounter = opcode & 0x0FFF;
 			break;
+		}
+		case 0x3000: { // 0x3XNN: 
+			// Skips the next instruction if VX equals NN. 
+			// (Usually the next instruction is a jump to skip a code block)
+			
+			programCounter += 2;
+			if (registerV[(opcode & 0x0F00) >> 8] == opcode & 0x00FF) {
+				programCounter += 2;
+			}
 
-		case 0x0004: // 0x8XY4: adds value of VY to VX
+			break;
+		}
+
+		case 0x0004: {// 0x8XY4: adds value of VY to VX
 			// If sum is greater than 255, carry flag lets us know
 			if (registerV[(opcode & 0x00F0) >> 4] > (0xFF - registerV[(opcode & 0x0F00) >> 8]))
 				setCarry(true);
@@ -153,15 +177,16 @@ public:
 			registerV[(opcode & 0x0F00) >> 8] += registerV[(opcode & 0x00F0) >> 4];
 			programCounter += 2;
 			break;
+		}
 
-		case 0x0033: // 0xFX33: Store binary-coded decimal representation of VX at I, I+1 and I+2
+		case 0x0033: {// 0xFX33: Store binary-coded decimal representation of VX at I, I+1 and I+2
 			memory[indexRegister] = registerV[(opcode & 0x0F00) >> 8] / 100;
 			memory[indexRegister + 1] = (registerV[(opcode & 0x0F00) >> 8] / 10) % 10;
 			memory[indexRegister + 2] = (registerV[(opcode & 0x0F00) >> 8] % 100) % 10;
 			programCounter += 2;
 			break;
-
-		case 0xD000: // 0xDXYN: Draws sprite at VX,VY with width of 8 and height of N
+		}
+		case 0xD000: { // 0xDXYN: Draws sprite at VX,VY with width of 8 and height of N
 			// Carry set if screen pixels are flipped from set to unset when drawn
 			// Carry stays false if this doesn't happen
 			unsigned short x = registerV[(opcode & 0x0F00) >> 8];
@@ -184,8 +209,10 @@ public:
 			drawFlag = true;
 			programCounter += 2;
 			break;
-			
+		}
+
 		case 0xE000: // Multiple options here
+		{
 			// 0xEX9E, 0xEXA1, and 0xFX0A
 			switch (opcode & 0x00FF) {
 			case 0x009E: // EX9E: Skips next instruction if key in VX pressed
@@ -196,8 +223,32 @@ public:
 				break;
 			}
 			break;
+		}
+		case 0xF000: // Multiple options
+		{
+			switch (opcode & 0x00FF) {
+			case 0x0007: {  // FX07: Sets VX to the value of the delay timer.
+				int x = (opcode & 0x0F00) >> 8;
+				registerV[x] = delayTimer;
+				programCounter += 2;
+				break;
+			}
+			case 0x0015: {  // FX15: Set delay timer to VX
+				int x = (opcode & 0x0F00) >> 8;
+				delayTimer = registerV[x];
+				programCounter += 2;
+				break;
+			}
+			default:
+				printf("UNKNOWN OPCODE: 0x%X\n", opcode);
+				programCounter += 2;
+			}
+
+			break;
+		}
 		default:
 			printf("UNKNOWN OPCODE: 0x%X\n", opcode);
+			programCounter += 2;
 		}
 
         // Update timers
