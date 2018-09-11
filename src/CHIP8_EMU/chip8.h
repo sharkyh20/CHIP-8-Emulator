@@ -65,6 +65,22 @@ public:
 		0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
 		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 	};
+    void clearDisplay() {
+        // Clear display
+        memset(graphics, 0, 64 * 32);
+    }
+    void clearStack() {
+        // Clear stack
+        memset(stack, 0, 16);
+    }
+    void clearRegisters() {
+        // Clear register V0-VF
+        memset(registerV, 0, 16);
+    }
+    void clearMemory() {
+        // Clear memory
+        memset(memory, 0, 4096);
+    }
     void initialise() {
         // Initialise registers and memory once
 		programCounter = 0x200; // Program counter starts at 0x200
@@ -73,24 +89,19 @@ public:
 		indexRegister = 0;
 		stackPointer = 0;
 
-		// Clear display
-		for (int i = 0; i < 64 * 32; ++i)
-			graphics[i] = 0;
-		// Clear stack
-		for (int i = 0; i < 16; ++i)
-			stack[i] = 0;
-		// Clear register V0-VF
-		for (int i = 0; i < 16; ++i)
-			registerV[i] = 0;
-		// Clear memory
-		for (int i = 0; i < 4096; ++i)
-			memory[i] = 0;
+        clearDisplay();
+        clearStack();
+        clearRegisters();
+        clearMemory();
+
 		// Load fontset
 		for (int i = 0; i < 80; ++i) {
 			memory[i] = chip8_fontset[i];
 		}
 
 		// Reset timers
+        delayTimer = 0;
+        soundTimer = 0;
     }
     void loadGame(std::string gameName) {
         // Load file in binary mode, fill at 0x200 ( = 512)
@@ -131,61 +142,91 @@ public:
 			// Counter incremented by 2, as two successive bytes are fetched
 			// from different addresses, and merged
 
-		case 0x0000: {// 0x00E0: Clears the screen
-			// Execute
-			break;
-		}
-		case 0x6000: { // 0x6XNN: Sets VX to NN
-			registerV[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
-			programCounter += 2;
-			break;
-		}
-		case 0x000E: { // 0x00EE: Returns from subroutine
-			// Execute
-			break;
-		}
-		case 0xA000: { // 0xANNN: Sets indexRegister to address NNN
-			indexRegister = opcode & 0x0FFF;
-			programCounter += 2;
-			break;
-		}
-		case 0x2000: { // 0x2NNN: Calls subroutine at address NNN
-			// program counter NOT increased by two, because subroutine
-			stack[stackPointer] = programCounter;
-			++stackPointer;
-			programCounter = opcode & 0x0FFF;
-			break;
-		}
-		case 0x3000: { // 0x3XNN: 
-			// Skips the next instruction if VX equals NN. 
-			// (Usually the next instruction is a jump to skip a code block)
-			
-			programCounter += 2;
-			if (registerV[(opcode & 0x0F00) >> 8] == opcode & 0x00FF) {
-				programCounter += 2;
-			}
+		case 0x0000: {
 
+
+            switch (opcode & 0x0FFF) {
+            case 0x00E0: { // 0x00E0: Clears the screen
+                clearDisplay();
+                programCounter += 2;
+                break;
+            }
+            case 0x00EE: { // 0x00EE: Returns from subroutine
+                --stackPointer;
+                programCounter = stack[stackPointer];
+                // Might need to ++2 the pc ?
+                break;
+            }
+            default: { // 0xNNN: Calls RCA 1802 program at address NNN. Not necessary for most ROMs.
+                // TODO
+                break;
+            }
+            }
 			break;
 		}
 
-		case 0x0004: {// 0x8XY4: adds value of VY to VX
-			// If sum is greater than 255, carry flag lets us know
-			if (registerV[(opcode & 0x00F0) >> 4] > (0xFF - registerV[(opcode & 0x0F00) >> 8]))
-				setCarry(true);
-			else
-				setCarry(false);
-			registerV[(opcode & 0x0F00) >> 8] += registerV[(opcode & 0x00F0) >> 4];
-			programCounter += 2;
-			break;
-		}
+		
+        case 0x1000: { // 0x1NNN: Jumps to address NNN
+            stack[stackPointer] = programCounter;
+            programCounter = opcode & 0x0FFF;
+            // += 2 not necessary
+            break;
+        }
+        case 0x2000: { // 0x2NNN: Calls subroutine at address NNN
+                       // program counter NOT increased by two, because subroutine
+            stack[stackPointer] = programCounter;
+            ++stackPointer;
+            programCounter = opcode & 0x0FFF;
+            break;
+        }
+        case 0x3000: { // 0x3XNN: 
+                       // Skips the next instruction if VX equals NN. 
+                       // (Usually the next instruction is a jump to skip a code block)
 
-		case 0x0033: {// 0xFX33: Store binary-coded decimal representation of VX at I, I+1 and I+2
-			memory[indexRegister] = registerV[(opcode & 0x0F00) >> 8] / 100;
-			memory[indexRegister + 1] = (registerV[(opcode & 0x0F00) >> 8] / 10) % 10;
-			memory[indexRegister + 2] = (registerV[(opcode & 0x0F00) >> 8] % 100) % 10;
-			programCounter += 2;
-			break;
-		}
+            programCounter += 2;
+            if (registerV[(opcode & 0x0F00) >> 8] == opcode & 0x00FF) {
+                programCounter += 2;
+            }
+
+            break;
+        }
+        case 0x6000: { // 0x6XNN: Sets VX to NN
+            registerV[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
+            programCounter += 2;
+            break;
+        }
+        case 0x7000: { // 0x7XNN: Adds NN to VX (Carry flag not changed)
+            registerV[(opcode & 0x0F00) >> 8] += opcode & 0x00FF;
+            programCounter += 2;
+            break;
+        }
+        case 0x8000: {
+            switch (opcode & 0x000F) {
+            case 0x0004: {// 0x8XY4: adds value of VY to VX
+                          // If sum is greater than 255, carry flag lets us know
+                if (registerV[(opcode & 0x00F0) >> 4] > (0xFF - registerV[(opcode & 0x0F00) >> 8]))
+                    setCarry(true);
+                else
+                    setCarry(false);
+                registerV[(opcode & 0x0F00) >> 8] += registerV[(opcode & 0x00F0) >> 4];
+                programCounter += 2;
+                break;
+            }
+            default:
+                printf("UNKNOWN OPCODE: 0x%X\n", opcode);
+                programCounter += 2;
+                break;
+            }
+            break;
+        }
+		
+        case 0xA000: { // 0xANNN: Sets indexRegister to address NNN
+            indexRegister = opcode & 0x0FFF;
+            programCounter += 2;
+            break;
+        }
+
+		
 		case 0xD000: { // 0xDXYN: Draws sprite at VX,VY with width of 8 and height of N
 			// Carry set if screen pixels are flipped from set to unset when drawn
 			// Carry stays false if this doesn't happen
@@ -224,6 +265,7 @@ public:
 			}
 			break;
 		}
+
 		case 0xF000: // Multiple options
 		{
 			switch (opcode & 0x00FF) {
@@ -239,9 +281,17 @@ public:
 				programCounter += 2;
 				break;
 			}
+            case 0x0033: {// 0xFX33: Store binary-coded decimal representation of VX at I, I+1 and I+2
+                memory[indexRegister] = registerV[(opcode & 0x0F00) >> 8] / 100;
+                memory[indexRegister + 1] = (registerV[(opcode & 0x0F00) >> 8] / 10) % 10;
+                memory[indexRegister + 2] = (registerV[(opcode & 0x0F00) >> 8] % 100) % 10;
+                programCounter += 2;
+                break;
+            }
 			default:
 				printf("UNKNOWN OPCODE: 0x%X\n", opcode);
 				programCounter += 2;
+                break;
 			}
 
 			break;
@@ -249,6 +299,7 @@ public:
 		default:
 			printf("UNKNOWN OPCODE: 0x%X\n", opcode);
 			programCounter += 2;
+            break;
 		}
 
         // Update timers
