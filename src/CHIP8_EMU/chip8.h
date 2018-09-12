@@ -2,6 +2,7 @@
 #include "stdafx.h"
 
 #include <fstream>
+#include <random>
 #include <iterator>
 #include <algorithm>
 #include <vector>
@@ -116,7 +117,18 @@ public:
 
 	void setCarry(bool on) { registerV[0xF] = on; }
 
-	void setKeys() {
+	int randRange(int min, int max) {
+		// https://stackoverflow.com/questions/7560114/random-number-c-in-some-range
+		//std::random_device rd; // obtain random number from hardware
+		//std::mt19937 engine(rd); // seed the generator
+		//std::uniform_int_distribution<int> distr(min, max);
+
+		//return distr(engine);
+		return 0;
+	}
+
+	void setKeys(const Uint8* keyboardState) {
+		// Takes in the array from SDL the Uint8
 		/*
 		Keypad                   Keyboard
 		+-+-+-+-+                +-+-+-+-+
@@ -129,7 +141,24 @@ public:
 		|A|0|B|F|                |Z|X|C|V|
 		+-+-+-+-+                +-+-+-+-+
 		*/
-		
+		// There's probably a way better way to do this
+		key[0x0] = keyboardState[SDL_SCANCODE_X];
+		key[0x1] = keyboardState[SDL_SCANCODE_1];
+		key[0x2] = keyboardState[SDL_SCANCODE_2];
+		key[0x3] = keyboardState[SDL_SCANCODE_3];
+		key[0x4] = keyboardState[SDL_SCANCODE_Q];
+		key[0x5] = keyboardState[SDL_SCANCODE_W];
+		key[0x6] = keyboardState[SDL_SCANCODE_E];
+		key[0x7] = keyboardState[SDL_SCANCODE_A];
+		key[0x8] = keyboardState[SDL_SCANCODE_S];
+		key[0x9] = keyboardState[SDL_SCANCODE_D];
+		key[0xA] = keyboardState[SDL_SCANCODE_Z];
+		key[0xB] = keyboardState[SDL_SCANCODE_C];
+		key[0xC] = keyboardState[SDL_SCANCODE_4];
+		key[0xD] = keyboardState[SDL_SCANCODE_R];
+		key[0xE] = keyboardState[SDL_SCANCODE_F];
+		key[0xF] = keyboardState[SDL_SCANCODE_V];
+		printf("KEY PRESSED: %c\n", key[0x0]);
 	}
 
     void emulateCycle() {
@@ -214,11 +243,34 @@ public:
         }
         case 0x8000: {
             switch (opcode & 0x000F) {
-			case 0x0000: {
+			case 0x0000: { // 0x8XY0: Sets VX to VY
+				registerV[(opcode & 0x0F00) >> 8] = registerV[(opcode & 0x00F0) >> 4];
+				programCounter += 2;
 				break;
 			}
-            case 0x0004: {// 0x8XY4: adds value of VY to VX
-                          // If sum is greater than 255, carry flag lets us know
+			case 0x0001: { // 0x8XY1: Sets VX to VX or VY. (Bitwise OR operation)
+				registerV[(opcode & 0x0F00) >> 8] = 
+					  registerV[(opcode & 0x0F00) >> 8]
+					| registerV[(opcode & 0x00F0) >> 4];
+				programCounter += 2;
+				break;
+			}
+			case 0x0002: { // 0x8XY2: Sets VX to VX and VY. (Bitwise AND operation)
+				registerV[(opcode & 0x0F00) >> 8] =
+					  registerV[(opcode & 0x0F00) >> 8]
+					& registerV[(opcode & 0x00F0) >> 4];
+				programCounter += 2;
+				break;
+			}
+			case 0x0003: { // 0x8XY3: Sets VX to VX xor VY. (Bitwise XOR operation)
+				registerV[(opcode & 0x0F00) >> 8] =
+					  registerV[(opcode & 0x0F00) >> 8]
+					^ registerV[(opcode & 0x00F0) >> 4];
+				programCounter += 2;
+				break;
+			}
+            case 0x0004: { // 0x8XY4: adds value of VY to VX
+                // If sum is greater than 255, carry flag lets us know
                 if (registerV[(opcode & 0x00F0) >> 4] > (0xFF - registerV[(opcode & 0x0F00) >> 8]))
                     setCarry(true);
                 else
@@ -227,6 +279,45 @@ public:
                 programCounter += 2;
                 break;
             }
+			case 0x0005: { // 0x8XY5: VY is subtracted from VX
+				// Carry Flag set to 0 if borrow, 1 if isn't
+				int x = (opcode & 0x0F00) >> 8;
+				int y = (opcode & 0x00F0) >> 4;
+				if (registerV[x] > registerV[y])
+					setCarry(true);
+				else
+					setCarry(false);
+
+				registerV[x] -= registerV[y];
+				programCounter += 2;
+			}
+			case 0x0006: { // 0x8XY6: Stores least significant bit of VX in VF
+				// Also shifts VX to right by 1
+				// Docs disagree on what this is, may have to divide VX by two instead of shift
+				registerV[0xF] = (registerV[(opcode & 0x0F00) >> 8] & 0b00000001);
+				registerV[(opcode & 0x0F00) >> 8] >>= 1;
+				programCounter += 2;
+				break;
+			}
+			case 0x0007: { // 0x8XY7: Sets VX to VY minus VX
+				// VF is set to 0 when there's a borrow, and 1 when there isn't.
+				int x = (opcode & 0x0F00) >> 8;
+				int y = (opcode & 0x00F0) >> 4;
+				if (registerV[x] > registerV[y])
+					setCarry(true);
+				else
+					setCarry(false);
+				registerV[x] = registerV[y] - registerV[x];
+				programCounter += 2;
+				break;
+			}
+			case 0x000E: { // 0x8XYE: Stores the most significant bit of VX in VF 
+				// and then shifts VX to the left by 1
+				registerV[0xF] = (registerV[(opcode & 0x0F00) >> 8] & 0b10000000) >> 7;
+				registerV[(opcode & 0x0F00) >> 8] <<= 1;
+				programCounter += 2;
+				break;
+			}
             default:
                 printf("UNKNOWN OPCODE: 0x%X\n", opcode);
                 programCounter += 2;
@@ -234,13 +325,29 @@ public:
             }
             break;
         }
+		case 0x9000: { // 0x9XY0: Skips next instructions if VX != VY
+			programCounter += 2;
+			if (registerV[(opcode & 0x0F00) >> 8] != registerV[(opcode & 0x00F0) >> 4])
+				programCounter += 2;
+			break;
+		}
 		
         case 0xA000: { // 0xANNN: Sets indexRegister to address NNN
             indexRegister = opcode & 0x0FFF;
             programCounter += 2;
             break;
         }
-
+		case 0xB000: { // 0xBNNN: Jumps to address NNN plus V0
+			stack[stackPointer] = programCounter;
+			programCounter = (opcode & 0x0FFF) + registerV[0];
+			break;
+		}
+		case 0xC000: { // 0xCXNN: Sets VX to bitwise AND on a random number and NN
+			// random in range 0-255
+			registerV[(opcode & 0x0F00) >> 8] = randRange(0, 255) & (opcode & 0x00FF);
+			programCounter += 2;
+			break;
+		}
 		
 		case 0xD000: { // 0xDXYN: Draws sprite at VX,VY with width of 8 and height of N
 			// Carry set if screen pixels are flipped from set to unset when drawn
@@ -271,32 +378,52 @@ public:
 		{
 			// 0xEX9E, 0xEXA1, and 0xFX0A
 			switch (opcode & 0x00FF) {
-			case 0x009E: // EX9E: Skips next instruction if key in VX pressed
+			case 0x009E: { // 0xEX9E: Skips next instruction if key in VX pressed
 				if (key[registerV[(opcode & 0x0F00) >> 8]] != 0)
-					programCounter += 4;
-				else
 					programCounter += 2;
+				programCounter += 2;
+				break;
+			}
+			case 0x00A1: { // 0xEXA1: Skips next instruction if key in VX not pressed
+				if (key[registerV[(opcode & 0x0F00) >> 8]] == 0)
+					programCounter += 2;
+				programCounter += 2;
+				break;
+			}
+			default:
+				printf("UNKNOWN OPCODE: 0x%X\n", opcode);
+				programCounter += 2;
 				break;
 			}
 			break;
 		}
-
 		case 0xF000: // Multiple options
 		{
 			switch (opcode & 0x00FF) {
-			case 0x0007: {  // FX07: Sets VX to the value of the delay timer.
+			case 0x0007: { // 0xFX07: Sets VX to the value of the delay timer.
 				int x = (opcode & 0x0F00) >> 8;
 				registerV[x] = delayTimer;
 				programCounter += 2;
 				break;
 			}
-			case 0x0015: {  // FX15: Set delay timer to VX
+			case 0x000A: { // 0xFX0A: Key press waited for, then stored in VX
+				char key = 0;
+				if (true) { // TODO
+					registerV[(opcode & 0x0F00) >> 8] = key;
+					programCounter += 2;
+				}
+				else {
+
+				}
+				break;
+			}
+			case 0x0015: { // 0xFX15: Set delay timer to VX
 				int x = (opcode & 0x0F00) >> 8;
 				delayTimer = registerV[x];
 				programCounter += 2;
 				break;
 			}
-            case 0x0033: {// 0xFX33: Store binary-coded decimal representation of VX at I, I+1 and I+2
+            case 0x0033: { // 0xFX33: Store binary-coded decimal representation of VX at I, I+1 and I+2
                 memory[indexRegister] = registerV[(opcode & 0x0F00) >> 8] / 100;
                 memory[indexRegister + 1] = (registerV[(opcode & 0x0F00) >> 8] / 10) % 10;
                 memory[indexRegister + 2] = (registerV[(opcode & 0x0F00) >> 8] % 100) % 10;
