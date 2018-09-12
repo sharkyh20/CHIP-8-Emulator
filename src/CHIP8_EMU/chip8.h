@@ -190,6 +190,18 @@ public:
 
             break;
         }
+		case 0x4000: { // 0x4XNN: Skips the next instruction if VX doesn't equal NN.
+			programCounter += 2;
+			if (registerV[(opcode & 0x0F00) >> 8] != opcode & 0x00FF)
+				programCounter += 2;
+			break;
+		}
+		case 0x5000: { // 0x5XY0: Skips the next instruction if VX equals VY
+			programCounter += 2;
+			if (registerV[(opcode & 0x0F00) >> 8] == registerV[(opcode & 0x00F0) >> 4])
+				programCounter += 2;
+			break;
+		}
         case 0x6000: { // 0x6XNN: Sets VX to NN
             registerV[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
             programCounter += 2;
@@ -202,6 +214,9 @@ public:
         }
         case 0x8000: {
             switch (opcode & 0x000F) {
+			case 0x0000: {
+				break;
+			}
             case 0x0004: {// 0x8XY4: adds value of VY to VX
                           // If sum is greater than 255, carry flag lets us know
                 if (registerV[(opcode & 0x00F0) >> 4] > (0xFF - registerV[(opcode & 0x0F00) >> 8]))
