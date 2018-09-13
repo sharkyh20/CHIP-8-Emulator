@@ -7,17 +7,18 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <array>
 
 
 class Chip8 {
 public:
 	unsigned short opcode;
 	// System has 4K memory
-	unsigned char memory[4096];
+	std::array<unsigned char, 4096> memory;
 
 	// CPU Registers, 15 * 8bit, V0->VE + the 16th VF
 	// 16th (VF) is the carry flag
-	unsigned char registerV[16];
+	std::array<unsigned char, 16> registerV;
 
 	unsigned short indexRegister;
 	unsigned short programCounter;
@@ -29,7 +30,7 @@ public:
 
 	// Drawing is done in XOR, which sets VF register (used for collision detection
 	// Screen Res is total of 64 x 32
-	unsigned char graphics[64 * 32];
+	std::array<unsigned char, 64 * 32> graphics;
 
 	bool drawFlag = false;
 
@@ -41,14 +42,15 @@ public:
 
 	// Stack, anytime jump or subroutine used, the pc needs to be stored in the stack
 	// System has 16 levels of stack, current level stored in stackPointer
-	unsigned short stack[16];
+	std::array<unsigned short, 16> stack;
 	unsigned short stackPointer;
 
 	// Hex keypad used for input - 0x0 -> 0xF, current state of key here
-	unsigned char prevKey[16];
-	unsigned char key[16];
+	std::array<unsigned char, 16> prevKey;
+	std::array<unsigned char, 16> key;
+	unsigned char lastPressedKey;
 
-	unsigned char chip8_fontset[80] =
+	std::array<unsigned char, 80> chip8_fontset =
 	{
 		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 		0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -69,23 +71,23 @@ public:
 	};
     void clearDisplay() {
         // Clear display
-        memset(graphics, 0, 64 * 32);
+		graphics = {};
     }
     void clearStack() {
         // Clear stack
-        memset(stack, 0, 16);
+		stack = {};
     }
     void clearRegisters() {
         // Clear register V0-VF
-        memset(registerV, 0, 16);
+		registerV = {};
     }
     void clearMemory() {
         // Clear memory
-        memset(memory, 0, 4096);
+		memory = {};
     }
 	void clearKeys() {
-		memset(prevKey, 0, 16);
-		memset(key, 0, 16);
+		prevKey = {};
+		key = {};
 	}
     void initialise() {
         // Initialise registers and memory once
@@ -125,12 +127,11 @@ public:
 
 	int randRange(int min, int max) {
 		// https://stackoverflow.com/questions/7560114/random-number-c-in-some-range
-		//std::random_device rd; // obtain random number from hardware
-		//std::mt19937 engine(rd); // seed the generator
-		//std::uniform_int_distribution<int> distr(min, max);
+		std::random_device rd; // obtain random number from hardware
+		std::mt19937 engine{ rd() }; // seed the generator
+		std::uniform_int_distribution<int> distr{ min, max };
 
-		//return distr(engine);
-		return 0;
+		return distr(engine);
 	}
 
 	void setKeys(const Uint8* keyboardState) {
@@ -148,7 +149,7 @@ public:
 		+-+-+-+-+                +-+-+-+-+
 		*/
 		// There's probably a way better way to do this
-		memcpy(prevKey, key, 16);
+		prevKey = key;
 		
 		key[0x0] = keyboardState[SDL_SCANCODE_X];
 		key[0x1] = keyboardState[SDL_SCANCODE_1];
@@ -166,6 +167,13 @@ public:
 		key[0xD] = keyboardState[SDL_SCANCODE_R];
 		key[0xE] = keyboardState[SDL_SCANCODE_F];
 		key[0xF] = keyboardState[SDL_SCANCODE_V];
+
+		for (int i = 0; i < 16; ++i) {
+			if (key[i] != prevKey[i]) {
+				lastPressedKey = i;
+				break;
+			}
+		}
 	}
 
     void emulateCycle() {
@@ -414,13 +422,9 @@ public:
 				break;
 			}
 			case 0x000A: { // 0xFX0A: Key press waited for, then stored in VX
-				char key = 0;
-				if (true) { // TODO
-					registerV[(opcode & 0x0F00) >> 8] = key;
-					programCounter += 2;
-				}
-				else {
-
+				if (prevKey != key) { // TODO;
+					registerV[(opcode & 0x0F00) >> 8] = lastPressedKey;
+					programCounter += 2; // Does not continue unless key pressed
 				}
 				break;
 			}
@@ -460,6 +464,25 @@ public:
                 programCounter += 2;
                 break;
             }
+			case 0x0055: { // 0xFX55: Stores v0 to vX in memory at address I
+				// (Including Vx)
+				// Offset from I is increased by 1 for each value, but I not modified
+				int x = (opcode & 0x0F00) >> 8;
+				for (int i = 0; i <= x; ++i) {
+					memory[indexRegister + i] = registerV[i];
+				}
+				programCounter += 2;
+				break;
+			}
+			case 0x0065: { // 0xFX65: Fills v0 to Vx with values from memory starting at I
+				// (Including Vx)
+				int x = (opcode & 0x0F00) >> 8;
+				for (int i = 0; i <= x; ++i) {
+					registerV[i] = memory[indexRegister + i];
+				}
+				programCounter += 2;
+				break;
+			}
 			default:
 				printf("UNKNOWN OPCODE: 0x%X\n", opcode);
 				programCounter += 2;
