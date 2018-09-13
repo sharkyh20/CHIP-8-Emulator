@@ -45,6 +45,7 @@ public:
 	unsigned short stackPointer;
 
 	// Hex keypad used for input - 0x0 -> 0xF, current state of key here
+	unsigned char prevKey[16];
 	unsigned char key[16];
 
 	unsigned char chip8_fontset[80] =
@@ -82,6 +83,10 @@ public:
         // Clear memory
         memset(memory, 0, 4096);
     }
+	void clearKeys() {
+		memset(prevKey, 0, 16);
+		memset(key, 0, 16);
+	}
     void initialise() {
         // Initialise registers and memory once
 		programCounter = 0x200; // Program counter starts at 0x200
@@ -94,6 +99,7 @@ public:
         clearStack();
         clearRegisters();
         clearMemory();
+		clearKeys();
 
 		// Load fontset
 		for (int i = 0; i < 80; ++i) {
@@ -142,6 +148,8 @@ public:
 		+-+-+-+-+                +-+-+-+-+
 		*/
 		// There's probably a way better way to do this
+		memcpy(prevKey, key, 16);
+		
 		key[0x0] = keyboardState[SDL_SCANCODE_X];
 		key[0x1] = keyboardState[SDL_SCANCODE_1];
 		key[0x2] = keyboardState[SDL_SCANCODE_2];
@@ -158,7 +166,6 @@ public:
 		key[0xD] = keyboardState[SDL_SCANCODE_R];
 		key[0xE] = keyboardState[SDL_SCANCODE_F];
 		key[0xF] = keyboardState[SDL_SCANCODE_V];
-		printf("KEY PRESSED: %c\n", key[0x0]);
 	}
 
     void emulateCycle() {
@@ -420,6 +427,29 @@ public:
 			case 0x0015: { // 0xFX15: Set delay timer to VX
 				int x = (opcode & 0x0F00) >> 8;
 				delayTimer = registerV[x];
+				programCounter += 2;
+				break;
+			}
+			case 0x0018: { // 0xFX18: Sets sound timer to VX
+				soundTimer = registerV[(opcode & 0x0F00) >> 8];
+				programCounter += 2;
+				break;
+			}
+			case 0x001E: { // 0xFX1E: Adds VX to I
+				if (indexRegister + registerV[(opcode & 0x0F00) >> 8] > 0xFFF)
+					setCarry(true);
+				else
+					setCarry(false);
+				indexRegister += registerV[(opcode & 0x0F00) >> 8];
+				programCounter += 2;
+				break;
+			}
+			case 0x0029: { // 0xFX29: Sets I to location of the sprite for char in VX
+				// Need to evaluate
+				unsigned char vxChar = registerV[(opcode & 0x0F00) >> 8];
+				static const int fontWidth = 5;
+				//indexRegister = chip8_fontset[fontWidth * vxChar];
+				indexRegister = fontWidth * vxChar;
 				programCounter += 2;
 				break;
 			}
