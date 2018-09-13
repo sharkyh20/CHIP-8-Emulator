@@ -88,6 +88,7 @@ public:
 	void clearKeys() {
 		prevKey = {};
 		key = {};
+        lastPressedKey = 0;
 	}
     void initialise() {
         // Initialise registers and memory once
@@ -226,9 +227,10 @@ public:
         case 0x3000: { // 0x3XNN: 
                        // Skips the next instruction if VX equals NN. 
                        // (Usually the next instruction is a jump to skip a code block)
-
+            int x = (opcode & 0x0F00) >> 8;
+            int nn = opcode & 0x00FF;
             programCounter += 2;
-            if (registerV[(opcode & 0x0F00) >> 8] == opcode & 0x00FF) {
+            if (registerV[x] == nn) {
                 programCounter += 2;
             }
 
@@ -236,8 +238,11 @@ public:
         }
 		case 0x4000: { // 0x4XNN: Skips the next instruction if VX doesn't equal NN.
 			programCounter += 2;
-			if (registerV[(opcode & 0x0F00) >> 8] != opcode & 0x00FF)
-				programCounter += 2;
+            int x = (opcode & 0x0F00) >> 8;
+            int nn = opcode & 0x00FF;
+            if (registerV[x] != nn) {
+                programCounter += 2;
+            }
 			break;
 		}
 		case 0x5000: { // 0x5XY0: Skips the next instruction if VX equals VY
