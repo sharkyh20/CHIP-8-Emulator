@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "stdafx.h"
 
 #include <fstream>
@@ -200,6 +200,7 @@ public:
             case 0x00EE: { // 0x00EE: Returns from subroutine
                 --stackPointer;
                 programCounter = stack[stackPointer];
+				programCounter += 2;
                 // Might need to ++2 the pc ?
                 break;
             }
