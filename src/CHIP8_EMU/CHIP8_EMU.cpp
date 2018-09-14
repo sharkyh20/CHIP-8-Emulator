@@ -103,11 +103,9 @@ void drawGraphics(SDL_Renderer* & renderer, std::array<unsigned char, 2048> gfx,
 		for (int x = 0; x < width_res; ++x) {
             if (gfx[y * width_res + x] == 1) {
                 SDL_RenderDrawPoint(renderer, x, y);
-                SDL_RenderPresent(renderer); // Debug
             }
 		}
 	}
-	// Test comment for commit
 }
 
 
@@ -147,7 +145,6 @@ int main(int argc, char *argv[])
 
         // If the draw flag is set, update the screen
 		if (myChip8.drawFlag) {
-			
 			drawGraphics(renderer, myChip8.graphics, 64, 32);
 			SDL_RenderPresent(renderer);
 		}
