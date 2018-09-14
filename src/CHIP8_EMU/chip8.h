@@ -72,6 +72,7 @@ public:
     void clearDisplay() {
         // Clear display
 		graphics = {};
+		drawFlag = false;
     }
     void clearStack() {
         // Clear stack
