@@ -107,7 +107,20 @@ void drawGraphics(SDL_Renderer* & renderer, std::array<unsigned char, 2048> gfx,
 		}
 	}
 }
+#define TICK_INTERVAL    60
 
+static Uint32 m_nextTime;
+
+Uint32 time_left(void)
+{
+    Uint32 now;
+
+    now = SDL_GetTicks();
+    if (m_nextTime <= now)
+        return 0;
+    else
+        return m_nextTime - now;
+}
 
 
 int main(int argc, char *argv[])
@@ -136,21 +149,25 @@ int main(int argc, char *argv[])
         return 0;
     }
 	
-    
+    int opcodesPerSecond = 600;
+    m_nextTime = SDL_GetTicks() + TICK_INTERVAL;
 	for (;;) {
-		// Store key press state (Press and Release)
-		myChip8.setKeys(evaluateSDLinput());
+        long long seconds = 0;
+        for (int i = 0; i < opcodesPerSecond / TICK_INTERVAL; ++i) { // one frame
+            // Store key press state (Press and Release)
+            myChip8.setKeys(evaluateSDLinput());
 
-        myChip8.emulateCycle();
+            myChip8.emulateCycle();
 
-        // If the draw flag is set, update the screen
-		if (myChip8.drawFlag) {
-			drawGraphics(renderer, myChip8.graphics, 64, 32);
-			SDL_RenderPresent(renderer);
-		}
-		else {
-			clearScreen(renderer);
-		}
+            // If the draw flag is set, update the screen
+            if (myChip8.drawFlag) {
+                clearScreen(renderer);
+                drawGraphics(renderer, myChip8.graphics, 64, 32);
+                SDL_RenderPresent(renderer);
+            }
+        }
+        SDL_Delay(time_left());
+        m_nextTime += TICK_INTERVAL;
     }
 
     SDL_Delay(2000);
