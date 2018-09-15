@@ -384,6 +384,8 @@ public:
 				pixel = memory[indexRegister + yline];
 				for (int xline = 0; xline < 8; xline++) {
 					if ((pixel & (0x80 >> xline)) != 0) {
+                        if ((x + xline + ((y + yline) * 64)) > 2047)
+                            continue; // Some graphics go off screen - which breaks the limits of the array, and crash
 						if (graphics[(x + xline + ((y + yline) * 64))] == 1)
 							setCarry(true);
 						graphics[x + xline + ((y + yline) * 64)] ^= 1;
