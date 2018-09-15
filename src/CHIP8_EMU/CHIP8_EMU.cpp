@@ -109,17 +109,15 @@ void drawGraphics(SDL_Renderer* & renderer, std::array<unsigned char, 2048> gfx,
 }
 #define TICK_INTERVAL    60
 
-static Uint32 m_nextTime;
-
-Uint32 time_left(void)
+Uint32 time_left(Uint32 nextTime)
 {
     Uint32 now;
 
     now = SDL_GetTicks();
-    if (m_nextTime <= now)
+    if (nextTime <= now)
         return 0;
     else
-        return m_nextTime - now;
+        return nextTime - now;
 }
 
 
@@ -150,7 +148,7 @@ int main(int argc, char *argv[])
     }
 	
     int opcodesPerSecond = 600;
-    m_nextTime = SDL_GetTicks() + TICK_INTERVAL;
+    Uint32 nextTime = SDL_GetTicks() + TICK_INTERVAL;
 	for (;;) {
         long long seconds = 0;
         for (int i = 0; i < opcodesPerSecond / TICK_INTERVAL; ++i) { // one frame
@@ -166,8 +164,8 @@ int main(int argc, char *argv[])
                 SDL_RenderPresent(renderer);
             }
         }
-        SDL_Delay(time_left());
-        m_nextTime += TICK_INTERVAL;
+        SDL_Delay(time_left(nextTime));
+        nextTime += TICK_INTERVAL;
     }
 
     SDL_Delay(2000);
