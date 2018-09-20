@@ -13,5 +13,8 @@ http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter
 Don't download the zip file directly from Github, as last time I tested, it doesn't properly grab the submodules, which are needed to compile the project.
 
 1. Pull the project from git: git clone --recurse-submodules http://github.com/sharkyh20/CHIP-8-Emulator/
-1. Compile the Native File Dialog solution in both Debug and Release
-1. 
+1. Go to CHIP-8-Emulator\external\nativefiledialog\build\vs2010 and open the NativeFileDialog.sln
+1. Depending on your version of VS, retarget the solution when it prompts (Click OK in the popup window)
+1. Compile the 'nfd' project, in x64, as both Debug and Release
+1. In the "CHIP-8-Emulator\src\CHIP8_EMU" folder, open the Visual Studio solution (I used 2017)
+1. Build the project in release or debug (x64) as desired
