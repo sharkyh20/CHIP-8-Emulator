@@ -18,3 +18,4 @@ Don't download the zip file directly from Github, as last time I tested, it does
 1. Compile the 'nfd' project, in x64, as both Debug and Release
 1. In the "CHIP-8-Emulator\src\CHIP8_EMU" folder, open the Visual Studio solution (I used 2017)
 1. Build the project in release or debug (x64) as desired
+1. A file dialog box will open on starting the emulator, open any .ch8 rom and it should work
