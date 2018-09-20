@@ -5,6 +5,7 @@
 
 # External Dependencies Folder
 !external/SDL/**/*
+roms/*
 
 # User-specific files
 *.suo
