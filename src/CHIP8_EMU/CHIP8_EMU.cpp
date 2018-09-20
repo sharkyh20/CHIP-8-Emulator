@@ -106,8 +106,11 @@ void drawGraphics(SDL_Renderer* & renderer, std::array<unsigned char, 2048> gfx,
             }
 		}
 	}
+	
 }
-#define TICK_INTERVAL    60
+constexpr auto tick_interval = 1000.f / 120.f; 
+// This is kind of arbitrary and dependant on hardware, and each game
+// The 1000 is the milliseconds per second, and the right hand side is how many ticks (instructions) per second
 
 Uint32 time_left(Uint32 nextTime)
 {
@@ -148,24 +151,24 @@ int main(int argc, char *argv[])
     }
 	
     int opcodesPerSecond = 600;
-    Uint32 nextTime = SDL_GetTicks() + TICK_INTERVAL;
+    Uint32 nextTime = SDL_GetTicks() + tick_interval;
 	for (;;) {
-        long long seconds = 0;
-        for (int i = 0; i < opcodesPerSecond / TICK_INTERVAL; ++i) { // one frame
-            // Store key press state (Press and Release)
-            myChip8.setKeys(evaluateSDLinput());
+		long long seconds = 0;
+		// Store key press state (Press and Release)
+		myChip8.setKeys(evaluateSDLinput());
 
-            myChip8.emulateCycle();
+		myChip8.emulateCycle();
 
-            // If the draw flag is set, update the screen
-            if (myChip8.drawFlag) {
-                clearScreen(renderer);
-                drawGraphics(renderer, myChip8.graphics, 64, 32);
-                SDL_RenderPresent(renderer);
-            }
-        }
-        SDL_Delay(time_left(nextTime));
-        nextTime += TICK_INTERVAL;
+		// If the draw flag is set, update the screen
+		if (myChip8.drawFlag) {
+			clearScreen(renderer);
+			drawGraphics(renderer, myChip8.graphics, 64, 32);
+			SDL_RenderPresent(renderer);
+		}
+		auto left = time_left(nextTime);
+		printf("%i\n",left);
+        SDL_Delay(left);
+        nextTime += tick_interval;
     }
 
     SDL_Delay(2000);

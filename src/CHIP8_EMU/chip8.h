@@ -178,6 +178,7 @@ public:
 		}
 	}
 
+
     void emulateCycle() {
         // Fetch opcode
 		// Each one is 2 bytes that has to be combined
@@ -189,8 +190,6 @@ public:
 			// from different addresses, and merged
 
 		case 0x0000: {
-
-
             switch (opcode & 0x0FFF) {
             case 0x00E0: { // 0x00E0: Clears the screen
                 clearDisplay();
@@ -214,7 +213,6 @@ public:
 
 		
         case 0x1000: { // 0x1NNN: Jumps to address NNN
-            stack[stackPointer] = programCounter;
             programCounter = opcode & 0x0FFF;
             // += 2 not necessary
             break;
