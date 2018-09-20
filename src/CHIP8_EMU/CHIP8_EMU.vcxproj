@@ -114,6 +114,9 @@
       <AdditionalDependencies>SDL\lib\x64\SDL2.lib;SDL\lib\x64\SDL2main.lib;nativefiledialog\build\lib\Debug\x64\nfd_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\external\</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command> xcopy /d /y "$(ProjectDir)..\..\external\dlls\*.*" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -155,6 +158,9 @@
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\external\</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL\lib\x64\SDL2.lib;SDL\lib\x64\SDL2main.lib;nativefiledialog\build\lib\Release\x64\nfd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command> xcopy /d /y "$(ProjectDir)..\..\external\dlls\*.*" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="chip8.h" />
